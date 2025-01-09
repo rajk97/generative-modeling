@@ -1,0 +1,6 @@
+FID: Frechet INception Distance: Compares teh distribution of generated images to the distribution of real images, measuring how similar they are. 
+- Lower FID indicates better quality of generated images. 
+- FID is sensitive to mode collapse: If the GAN generates only a few diverse images, FID will be high. 
+- Common Baseline: It provides a standardized way to compare GAM performance across studies. 
+- FID is best computed using a large number of images 
+- Basically, take images, pass through a feature extractor like Inception V3, get low dimensional representation, get their multivariate gaussian distribution, calculate the FID score between these distributions. 
