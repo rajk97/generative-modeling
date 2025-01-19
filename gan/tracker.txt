@@ -1,0 +1,3 @@
+Basically, you need the discriminato to distinguish properly and the generator to fool the model properly. 
+
+Q1_3.PY FID score of 69.4

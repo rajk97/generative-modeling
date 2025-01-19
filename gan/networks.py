@@ -95,7 +95,7 @@ class ResBlockUp(torch.jit.ScriptModule):
         self.relu = nn.ReLU()
         self.conv1 = nn.Conv2d(input_channels, n_filters, kernel_size=3, stride=1, padding=1, bias=False)
         self.batchNorm2d2 = nn.BatchNorm2d(n_filters, eps=1e-05, momentum=0.1, affine=True, track_running_stats = True)
-        self.upSampleConv2D = UpSampleConv2D(n_filters, kernel_size=3, nfilters=n_filters, padding=1)
+        self.upSampleConv2D = UpSampleConv2D(n_filters, kernel_size=3, n_filters=n_filters, padding=1)
         self.layers = nn.Sequential(self.batchNorm2d, self.relu, self.conv1, self.batchNorm2d2, self.relu, self.upSampleConv2D)
         self.upsample_residual = UpSampleConv2D(input_channels, kernel_size=1, n_filters=n_filters)
         ##################################################################

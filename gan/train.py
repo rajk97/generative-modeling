@@ -137,7 +137,7 @@ def train_model(
                 discrim_real, discrim_fake, discrim_interp, interp, lamb
             )
 
-            print(f"Discriminator Loss: {discriminator_loss.item()}")
+            # print(f"Discriminator Loss: {discriminator_loss.item()}")
             
             optim_discriminator.zero_grad(set_to_none=True)
             if(check_model_params_for_nan_inf(gen) or check_model_params_for_nan_inf(disc)):
