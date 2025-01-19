@@ -7,13 +7,23 @@ from torchvision import transforms
 from torchvision.utils import save_image
 from PIL import Image
 from torchvision.datasets import VisionDataset
+from ipdb import set_trace
+
+def check_model_params_for_nan_inf(model):
+    for name, param in model.named_parameters():
+        if torch.isnan(param).any() or torch.isinf(param).any():
+            print(f"Parameter {name} contains NaNs or Infs")
+            return True
+    return False
+
+def rescale_lambda_f(x):
+    return (x-0.5)*2.0
 
 
 def build_transforms():
     # 1. Convert input image to tensor.
     # 2. Rescale input image from [0., 1.] to be between [-1., 1.].
-    rescaling = lambda x: (x - 0.5) * 2.0
-    ds_transforms = transforms.Compose([transforms.ToTensor(), rescaling])
+    ds_transforms = transforms.Compose([transforms.ToTensor(), rescale_lambda_f])
     return ds_transforms
 
 
@@ -28,8 +38,8 @@ def get_optimizers_and_schedulers(gen, disc):
     # The learning rate for the generator should be decayed to 0 over
     # 100K iterations.
     ##################################################################
-    scheduler_discriminator = None
-    scheduler_generator = None
+    scheduler_discriminator = torch.optim.lr_scheduler.LambdaLR(optim_discriminator, lr_lambda=lambda step: max(0, 1-step/500000))
+    scheduler_generator = torch.optim.lr_scheduler.LambdaLR(optim_generator, lr_lambda=lambda step: max(0, 1-step/100000))
     ##################################################################
     #                          END OF YOUR CODE                      #
     ##################################################################
@@ -105,8 +115,9 @@ def train_model(
                 # 2. Compute discriminator output on the train batch.
                 # 3. Compute the discriminator output on the generated data.
                 ##################################################################
-                discrim_real = None
-                discrim_fake = None
+                generator_output = gen(train_batch.shape[0])
+                discrim_real = disc(train_batch)
+                discrim_fake = disc(generator_output)
                 ##################################################################
                 #                          END OF YOUR CODE                      #
                 ##################################################################
@@ -115,8 +126,9 @@ def train_model(
                 # TODO 1.5 Compute the interpolated batch and run the
                 # discriminator on it.
                 ###################################################################
-                interp = None
-                discrim_interp = None
+                alpha = torch.rand(train_batch.shape[0], 1, 1, 1, device=train_batch.device)
+                interp = alpha*train_batch + (1-alpha)*generator_output
+                discrim_interp = disc(interp)
                 ##################################################################
                 #                          END OF YOUR CODE                      #
                 ##################################################################
@@ -124,9 +136,17 @@ def train_model(
             discriminator_loss = disc_loss_fn(
                 discrim_real, discrim_fake, discrim_interp, interp, lamb
             )
+
+            print(f"Discriminator Loss: {discriminator_loss.item()}")
             
             optim_discriminator.zero_grad(set_to_none=True)
+            if(check_model_params_for_nan_inf(gen) or check_model_params_for_nan_inf(disc)):
+                print("Model parameters contain NaNs or Infs. Exiting training.")
+                return
             scaler.scale(discriminator_loss).backward()
+            if check_model_params_for_nan_inf(gen) or check_model_params_for_nan_inf(disc):
+                print("Model parameters contain NaNs or Infs. Exiting training.")
+                return
             scaler.step(optim_discriminator)
             scheduler_discriminator.step()
 
@@ -136,8 +156,8 @@ def train_model(
                     # TODO 1.2: Compute generator and discriminator output on
                     # generated data.
                     ###################################################################
-                    fake_batch = None
-                    discrim_fake = None
+                    fake_batch = gen(train_batch.shape[0])
+                    discrim_fake = disc(fake_batch)
                     ##################################################################
                     #                          END OF YOUR CODE                      #
                     ##################################################################
@@ -156,7 +176,8 @@ def train_model(
                         # TODO 1.2: Generate samples using the generator.
                         # Make sure they lie in the range [0, 1]!
                         ##################################################################
-                        generated_samples = None
+                        generated_samples = gen(100)
+
                         ##################################################################
                         #                          END OF YOUR CODE                      #
                         ##################################################################
@@ -171,6 +192,9 @@ def train_model(
                     else:
                         torch.save(gen, prefix + "/generator.pt")
                         torch.save(disc, prefix + "/discriminator.pt")
+                    if check_model_params_for_nan_inf(gen) or check_model_params_for_nan_inf(disc):
+                        print("Model parameters contain NaNs or Infs. Exiting training.")
+                        return
                     fid = get_fid(
                         gen,
                         dataset_name="cub",

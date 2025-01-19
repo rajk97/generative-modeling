@@ -7,6 +7,7 @@ import torch
 from networks import Discriminator, Generator
 import torch.nn.functional as F
 from train import train_model
+from ipdb import set_trace
 
 
 def compute_discriminator_loss(
@@ -18,6 +19,9 @@ def compute_discriminator_loss(
     # for Q1.5.
     ##################################################################
     loss = None
+    real_loss = F.binary_cross_entropy_with_logits(discrim_real, torch.ones_like(discrim_real))
+    fake_loss = F.binary_cross_entropy_with_logits(discrim_fake, torch.zeros_like(discrim_fake))
+    loss = real_loss + fake_loss
     ##################################################################
     #                          END OF YOUR CODE                      #
     ##################################################################
@@ -28,7 +32,7 @@ def compute_generator_loss(discrim_fake):
     ##################################################################
     # TODO 1.3: Implement GAN loss for the generator.
     ##################################################################
-    loss = None
+    loss = F.binary_cross_entropy_with_logits(discrim_fake, torch.ones_like(discrim_fake))
     ##################################################################
     #                          END OF YOUR CODE                      #
     ##################################################################
