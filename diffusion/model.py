@@ -10,6 +10,7 @@ from utils import (
     unnormalize_to_zero_to_one,
 )
 from einops import rearrange, reduce
+from ipdb import set_trace
 
 class DiffusionModel(nn.Module):
     def __init__(
@@ -33,30 +34,33 @@ class DiffusionModel(nn.Module):
         # TODO 3.1: Compute the cumulative products for current and
         # previous timesteps.
         ##################################################################
-        self.alphas_cumprod = None
-        self.alphas_cumprod_prev =  None
+        self.alphas_cumprod = torch.cumprod(alphas, dim=0)
+        self.alphas_cumprod_prev = torch.cat([
+            torch.tensor([1.0], device=self.device),
+            self.alphas_cumprod[:-1]
+        ])
 
         ##################################################################
         # TODO 3.1: Pre-compute values needed for forward process.
         ##################################################################
         # This is the coefficient of x_t when predicting x_0
-        self.x_0_pred_coef_1 = None
+        self.x_0_pred_coef_1 = 1/torch.sqrt(self.alphas_cumprod)
         # This is the coefficient of pred_noise when predicting x_0
-        self.x_0_pred_coef_2 = None
+        self.x_0_pred_coef_2 = -1*(torch.sqrt(1 - self.alphas_cumprod)/torch.sqrt(self.alphas_cumprod))
 
         ##################################################################
         # TODO 3.1: Compute the coefficients for the mean.
         ##################################################################
         # This is coefficient of x_0 in the DDPM section
-        self.posterior_mean_coef1 = None
+        self.posterior_mean_coef1 = (self.betas*torch.sqrt(self.alphas_cumprod_prev))/(1-self.alphas_cumprod)
         # This is coefficient of x_t in the DDPM section
-        self.posterior_mean_coef2 = None
+        self.posterior_mean_coef2 = ((torch.sqrt(self.alphas_cumprod))*(1-self.alphas_cumprod_prev))/(1-self.alphas_cumprod)
 
         ##################################################################
         # TODO 3.1: Compute posterior variance.
         ##################################################################
         # Calculations for posterior q(x_{t-1} | x_t, x_0) in DDPM
-        self.posterior_variance = None
+        self.posterior_variance = ((1 - self.alphas_cumprod_prev) / (1 - self.alphas_cumprod))*self.betas
         ##################################################################
         #                          END OF YOUR CODE                      #
         ##################################################################
@@ -89,9 +93,12 @@ class DiffusionModel(nn.Module):
         # get_posterior_parameters() for usage examples.
         # 
         ##################################################################
-        pred_noise = None
-        x_0 = None
-        
+        pred_noise = self.model(x_t, t)
+        coef1_t    = extract(self.x_0_pred_coef_1, t, x_t.shape)
+        coef2_t    = extract(self.x_0_pred_coef_2, t, x_t.shape)
+        x_0        = coef1_t * x_t + coef2_t * pred_noise
+        x_0        = torch.clamp(x_0, -1.0, 1.0)
+
         # TODO 3.1: Make sure to clamp x_0 between -1 and 1.0
         
         ##################################################################
@@ -110,6 +117,15 @@ class DiffusionModel(nn.Module):
         ##################################################################
         pred_img = None
         x_0 = None
+
+        # Step 1: Predict x_0 and the additive noise for t
+        pred_noise, x_0 = self.model_predictions(x, t)
+
+        # Step 2: Compute MU_T and VAR_T
+        mu_t = self.posterior_mean_coef2[t]*x + self.posterior_mean_coef1[t]*x_0
+        var_t = self.posterior_variance[t]
+
+        pred_img = mu_t + torch.sqrt(var_t)* torch.randn_like(mu_t)
         ##################################################################
         #                          END OF YOUR CODE                      #
         ##################################################################
