@@ -118,6 +118,8 @@ class DiffusionModel(nn.Module):
         pred_img = None
         x_0 = None
 
+        set_trace()
+
         # Step 1: Predict x_0 and the additive noise for t
         pred_noise, x_0 = self.model_predictions(x, t)
 
@@ -153,6 +155,8 @@ class DiffusionModel(nn.Module):
         return list(zip(times[:-1], times[1:]))
 
     def ddim_step(self, batch, device, tau_i, tau_isub1, img, model_predictions, alphas_cumprod, eta):
+
+        # set_trace()
         ##################################################################
         # TODO 3.2: Compute the output image for a single step of the DDIM
         # sampling process.
@@ -163,21 +167,32 @@ class DiffusionModel(nn.Module):
         if tau_isub1 < 0:
             tau_isub1 = 0        
 
+        # Create a tensor of tau_i and tau_isub1 for the batch
+        tau_i = batched_tau_i = torch.full((batch,), tau_i, device=device, dtype=torch.long)
+        tau_isub1 = batched_tau_isub1 = torch.full((batch,), tau_isub1, device=device, dtype=torch.long)
         
         x_0 = None
 
-        # Step 2: Extract \alpha_{\tau_{i - 1}} and \alpha_{\tau_{i}}
-        pass
+        pred_noise, x_0 = model_predictions(img, batched_tau_i)
 
+        # Step 2: Extract \alpha_{\tau_{i - 1}} and \alpha_{\tau_{i}}
+        alpha_tau_isub1 = extract(alphas_cumprod, tau_isub1, img.shape)
+        alpha_tau_i = extract(alphas_cumprod, tau_i, img.shape)
+        beta_tau_isubl = extract(self.betas, tau_isub1, img.shape)
+        beta_tilde_tau_i = ((1-alpha_tau_isub1)/(1-alpha_tau_i))*beta_tau_isubl
+
+        sigma_tau_i = torch.sqrt(eta*beta_tilde_tau_i)
+
+        mu_tau_i = torch.sqrt(alpha_tau_isub1)*x_0 + torch.sqrt(1-alpha_tau_isub1 - eta*beta_tilde_tau_i)*pred_noise
         # Step 3: Compute \sigma_{\tau_{i}}
-        pass
+        # pass
 
         # Step 4: Compute the coefficient of \epsilon_{\tau_{i}}
-        pass
+        # pass
 
         # Step 5: Sample from q(x_{\tau_{i - 1}} | x_{\tau_t}, x_0)
         # HINT: Use the reparameterization trick
-        img = None
+        img = mu_tau_i + sigma_tau_i*torch.randn_like(mu_tau_i)
         ##################################################################
         #                          END OF YOUR CODE                      #
         ##################################################################
