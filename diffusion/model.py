@@ -54,7 +54,7 @@ class DiffusionModel(nn.Module):
         # This is coefficient of x_0 in the DDPM section
         self.posterior_mean_coef1 = (self.betas*torch.sqrt(self.alphas_cumprod_prev))/(1-self.alphas_cumprod)
         # This is coefficient of x_t in the DDPM section
-        self.posterior_mean_coef2 = ((torch.sqrt(self.alphas_cumprod))*(1-self.alphas_cumprod_prev))/(1-self.alphas_cumprod)
+        self.posterior_mean_coef2 = ((torch.sqrt(alphas))*(1-self.alphas_cumprod_prev))/(1-self.alphas_cumprod)
 
         ##################################################################
         # TODO 3.1: Compute posterior variance.
@@ -122,10 +122,15 @@ class DiffusionModel(nn.Module):
         pred_noise, x_0 = self.model_predictions(x, t)
 
         # Step 2: Compute MU_T and VAR_T
-        mu_t = self.posterior_mean_coef2[t]*x + self.posterior_mean_coef1[t]*x_0
-        var_t = self.posterior_variance[t]
+        coef2 = extract(self.posterior_mean_coef2, t, x.shape)
+        coef1 = extract(self.posterior_mean_coef1, t, x.shape)
+        mu_t = coef2*x + coef1*x_0
+        # mu_t = self.posterior_mean_coef2[t]*x + self.posterior_mean_coef1[t]*x_0
+        var_t = extract(self.posterior_variance, t, x.shape)
 
-        pred_img = mu_t + torch.sqrt(var_t)* torch.randn_like(mu_t)
+        sigma = torch.sqrt(var_t).view(-1, 1, 1, 1)
+
+        pred_img = mu_t + sigma* torch.randn_like(mu_t)
         ##################################################################
         #                          END OF YOUR CODE                      #
         ##################################################################
