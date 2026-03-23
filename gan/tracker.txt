@@ -2,3 +2,5 @@ Basically, you need the discriminato to distinguish properly and the generator t
 
 Q1_3.PY FID score of 69.4
 Q2_3.PY FID score of 81.66
+Target: 4 PM: Read two papers Normal GAN and the second GAN, understand it, then be able to teach it. 
+4-4:30: Read WGAN, complete q1_5

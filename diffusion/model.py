@@ -118,8 +118,6 @@ class DiffusionModel(nn.Module):
         pred_img = None
         x_0 = None
 
-        set_trace()
-
         # Step 1: Predict x_0 and the additive noise for t
         pred_noise, x_0 = self.model_predictions(x, t)
 
